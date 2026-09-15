@@ -47,7 +47,7 @@ def create_packet(seq = 1):
     calc_checksum = checksum(packet)
 
     header = struct.pack("!BBHHH", 8, 0, calc_checksum, my_id, seq)
-    return header + payload_data~~~
+    return header + payload_data
 
 
 def ping(hostname, timeout=2, count = 4):
