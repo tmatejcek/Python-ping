@@ -50,22 +50,35 @@ def create_packet(seq = 1):
     return header + payload_data
 
 
-def ping(hostname, timeout=2, count = 4):
+def ping(hostname, timeout=2, count=4):
     ip = get_IP(hostname)
     created_socket = create_socket()
     for seq in range(1, count + 1):
         packet = create_packet(seq)
         send_time = time.time()
         created_socket.sendto(packet, (ip, 0))
-        ready = select.select([created_socket], [], [], timeout)
-        if ready[0] == []:
-            print(f"Request timed out for {hostname} ({ip}) of the sequence number {seq}")
-            continue
-        else:
-            recv_time = time.time()
-            recv_bytes, recv_address =created_socket.recvfrom(1024)
-            actual_time = recv_time - send_time
-            print(f"Pinging back from {ip} with the time of {actual_time * 1000:.2f}ms of the sequence number {seq}")
+        remaining_time = timeout - (time.time() - send_time)
+        reply_received = False
+        while remaining_time > 0:
+            remaining_time = timeout - (time.time() - send_time)
+            if remaining_time <= 0:
+                break
+            ready = select.select([created_socket], [], [], remaining_time)
+            print(f"seq {seq}: remaining={remaining_time:.2f}, ready={ready[0]}")
+            if ready[0] != []:
+                recv_bytes, recv_address = created_socket.recvfrom(1024)
+                icmp_type = recv_bytes[20]
+                print(f"seq {seq}: got something, type={icmp_type}")
+                if icmp_type == 0:
+                    recv_time = time.time()
+                    reply_received = True
+                    break
+            if reply_received == False:
+                print(f"Request timed out for {hostname} ({ip}) of the sequence number {seq}")
+            else:
+                actual_time = recv_time - send_time
+                print(f"Pinging back from {ip} with the time of {actual_time * 1000:.2f}ms of the sequence number {seq}")
+        time.sleep(1)
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
